@@ -1,8 +1,10 @@
 package com.zenika.zencontact.resource;
 
+import com.google.appengine.api.memcache.MemcacheService;
 import com.zenika.zencontact.domain.User;
 import com.zenika.zencontact.domain.blob.PhotoService;
 import com.zenika.zencontact.persistence.UserRepository;
+import com.zenika.zencontact.persistence.cache.MemCacheService;
 import com.zenika.zencontact.persistence.objectify.UserDaoObjectify;
 import com.google.gson.Gson;
 import com.google.common.base.Predicate;
@@ -51,6 +53,9 @@ public class UserResourceWithId extends HttpServlet {
     }
     User user = new Gson().fromJson(request.getReader(), User.class);
     UserDaoObjectify.getInstance().save(user);
+
+    resetContactsCache();
+
     response.setContentType("application/json; charset=utf-8");
     response.getWriter().println(new Gson().toJson(user));
   }
@@ -64,6 +69,15 @@ public class UserResourceWithId extends HttpServlet {
         return;
     }
     UserDaoObjectify.getInstance().delete(id);
+
+    resetContactsCache();
+    
   }
+
+  private void resetContactsCache() {
+    MemcacheService cache = MemCacheService.getInstance().memCache;
+    cache.delete(MemCacheService.CONTACTS_CACHES_KEY);
+  }
+
 }
 

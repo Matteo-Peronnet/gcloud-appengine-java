@@ -1,10 +1,13 @@
 package com.zenika.zencontact.resource;
 
+import com.google.appengine.api.memcache.Expiration;
+import com.google.appengine.api.memcache.MemcacheService;
 import com.zenika.zencontact.domain.User;
-import com.zenika.zencontact.persistence.UserRepository;
+import com.zenika.zencontact.persistence.cache.MemCacheService;
 import com.zenika.zencontact.persistence.objectify.UserDaoObjectify;
 import com.google.gson.Gson;
 import java.io.IOException;
+import java.util.List;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -18,8 +21,22 @@ public class UserResource extends HttpServlet {
   public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     response.setContentType("application/json; charset=utf-8");
-    response.getWriter().println(new Gson()
-      .toJsonTree(UserDaoObjectify.getInstance().getAll()).getAsJsonArray());
+
+    MemcacheService cache = MemCacheService.getInstance().memCache;
+
+    List<User> contacts = (List<User>) cache.get(MemCacheService.CONTACTS_CACHES_KEY);
+
+    if(contacts == null) {
+      contacts = UserDaoObjectify.getInstance().getAll();
+      cache.put(
+              MemCacheService.CONTACTS_CACHES_KEY,
+              contacts,
+              Expiration.byDeltaSeconds(240),
+              MemcacheService.SetPolicy.ADD_ONLY_IF_NOT_PRESENT
+      );
+    }
+
+    response.getWriter().println(new Gson().toJsonTree(contacts).getAsJsonArray());
   }
 
   @Override
@@ -27,6 +44,11 @@ public class UserResource extends HttpServlet {
       throws IOException {
     User user = new Gson().fromJson(request.getReader(), User.class);
     user.id(UserDaoObjectify.getInstance().save(user));
+
+    // Delete cache
+    MemcacheService cache = MemCacheService.getInstance().memCache;
+    cache.delete(MemCacheService.CONTACTS_CACHES_KEY);
+
     response.setContentType("application/json; charset=utf-8");
     response.setStatus(201);
     response.getWriter().println(new Gson().toJson(user));
