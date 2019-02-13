@@ -3,10 +3,13 @@ package com.zenika.zencontact.resource;
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.zenika.zencontact.domain.User;
+import com.zenika.zencontact.fetch.PartnerBidthdateService;
 import com.zenika.zencontact.persistence.cache.MemCacheService;
 import com.zenika.zencontact.persistence.objectify.UserDaoObjectify;
 import com.google.gson.Gson;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -43,6 +46,15 @@ public class UserResource extends HttpServlet {
   public void doPost(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     User user = new Gson().fromJson(request.getReader(), User.class);
+    String birthdate = PartnerBidthdateService.getInstance().findBirthdate(
+            user.firstName,
+            user.lastName
+    );
+    if (birthdate != null) {
+      try {
+        user.birthdate(new SimpleDateFormat("yyyy-MM-dd").parse(birthdate));
+      } catch (ParseException e) {}
+    }
     user.id(UserDaoObjectify.getInstance().save(user));
 
     // Delete cache

@@ -1,9 +1,10 @@
 package com.zenika.zencontact.email;
 
-import javax.mail.Address;
-import javax.mail.BodyPart;
-import javax.mail.Multipart;
-import javax.mail.Session;
+import com.zenika.zencontact.domain.Email;
+import com.zenika.zencontact.resource.auth.AuthenticationService;
+
+import javax.mail.*;
+import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Properties;
@@ -34,4 +35,32 @@ public class EmailService {
         } catch (Exception e) {}
     }
 
+    public void sendEmail(Email email) {
+        Properties props = new Properties();
+        Session session = Session.getDefaultInstance(props, null);
+        try {
+            MimeMessage message = new MimeMessage(session, null);
+            message.setFrom(new InternetAddress(
+                    AuthenticationService.getInstance().getUser().getEmail(),
+                    AuthenticationService.getInstance().getUsername()
+            ));
+
+            message.addRecipient(
+                    Message.RecipientType.TO,
+                    new InternetAddress(email.to, email.toName)
+            );
+            message.setReplyTo(new Address[] {
+               new InternetAddress("mp@epsi-20181212-mp.appspotmail.com", "Application team"),
+            });
+
+            message.setSubject(email.subject);
+
+            message.setText(email.body);
+
+            Transport.send(message);
+
+            LOG.warning("mail envoyé!");
+
+        } catch (Exception e) { }
+    }
 }
